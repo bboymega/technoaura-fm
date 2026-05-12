@@ -104,6 +104,14 @@ export default function Page() {
   const userPausedRef = useRef(false);
   const streamFailedRef = useRef(false);
   const fullscreenHistoryRef = useRef(false);
+  const pauseTimeoutRef =
+  useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  const playbackRequestIdRef = useRef(0);
+
+  const playbackSessionRef = useRef(0);
 
   const stopHealthCheck = () => {
     if (healthIntervalRef.current !== null) {
@@ -141,10 +149,27 @@ export default function Page() {
     audio.load();
   };
 
+  const beginNewPlaybackSession = () => {
+    playbackSessionRef.current += 1;
+
+    return playbackSessionRef.current;
+  };
+
+  const isPlaybackSessionActive = (
+    session: number,
+  ) => {
+    return (
+      playbackSessionRef.current === session
+    );
+  };
+
   const reconnectStream = async () => {
     const audio = audioRef.current;
 
     if (!audio) return;
+
+    const session =
+      playbackSessionRef.current;
 
     if (
       externalPauseRef.current ||
@@ -154,6 +179,9 @@ export default function Page() {
     }
 
     try {
+      const requestId =
+        ++playbackRequestIdRef.current;
+
       hardResetAudio();
 
       audio.src = streamUrlRef.current;
@@ -161,6 +189,25 @@ export default function Page() {
       audio.load();
 
       await audio.play();
+
+      // stale playback request
+      if (
+        requestId !==
+        playbackRequestIdRef.current
+      ) {
+        audio.pause();
+
+        hardResetAudio();
+
+        return;
+      }
+
+      // stale playback session
+      if (
+        !isPlaybackSessionActive(session)
+      ) {
+        return;
+      }
 
       recoveringRef.current = false;
 
@@ -170,7 +217,16 @@ export default function Page() {
 
       startHealthCheck(2500);
     } catch (err) {
-      console.error("Reconnect failed", err);
+      if (
+        !isPlaybackSessionActive(session)
+      ) {
+        return;
+      }
+
+      console.error(
+        "Reconnect failed",
+        err,
+      );
     }
   };
 
@@ -263,24 +319,47 @@ export default function Page() {
 
     if (!audio) return;
 
-    const handleBrowserPause = () => {
+    const handleAudioPlaying = () => {
+      if (pauseTimeoutRef.current) {
+        clearTimeout(
+          pauseTimeoutRef.current,
+        );
+
+        pauseTimeoutRef.current = null;
+      }
+
+      // stream actually ready
+      if (audio.readyState < 3) {
+        return;
+      }
+
+      externalPauseRef.current = false;
+
+      setPlaying(2);
+
+      startHealthCheck(2500);
+    };
+
+    const handleAudioPause = () => {
       if (
+        manualStopRef.current ||
         recoveringRef.current ||
-        manualStopRef.current
+        userPausedRef.current
       ) {
         return;
       }
 
-      // Browser/media focus interruption
-      if (playingRef.current === 2) {
-        externalPauseRef.current = true;
+      // transient interruption protection
+      pauseTimeoutRef.current =
+        setTimeout(() => {
+          if (audio.paused) {
+            externalPauseRef.current = true;
 
-        recoveringRef.current = false;
+            stopHealthCheck();
 
-        stopHealthCheck();
-
-        setPlaying(0);
-      }
+            setPlaying(0);
+          }
+        }, 1500);
     };
 
     const handleAudioError = () => {
@@ -301,14 +380,50 @@ export default function Page() {
       startHealthCheck(2000);
     };
 
-    audio.addEventListener("pause", handleBrowserPause);
+    const handleEnded = () => {
+      setPlaying(0);
+    };
 
-    audio.addEventListener("error", handleAudioError);
+    audio.addEventListener(
+      "pause",
+      handleAudioPause,
+    );
+
+    audio.addEventListener(
+      "playing",
+      handleAudioPlaying,
+    );
+
+    audio.addEventListener(
+      "ended",
+      handleEnded,
+    );
+
+    audio.addEventListener(
+      "error",
+      handleAudioError,
+    );
 
     return () => {
+      if (pauseTimeoutRef.current) {
+        clearTimeout(
+          pauseTimeoutRef.current,
+        );
+      }
+
       audio.removeEventListener(
         "pause",
-        handleBrowserPause,
+        handleAudioPause,
+      );
+
+      audio.removeEventListener(
+        "playing",
+        handleAudioPlaying,
+      );
+
+      audio.removeEventListener(
+        "ended",
+        handleEnded,
       );
 
       audio.removeEventListener(
@@ -405,9 +520,15 @@ export default function Page() {
     // PLAY
     if (audio.paused) {
       try {
+        const session =
+          beginNewPlaybackSession();
+
         userPausedRef.current = false;
         externalPauseRef.current = false;
         streamFailedRef.current = false;
+
+        const requestId =
+          ++playbackRequestIdRef.current;
 
         setPlaying(1);
 
@@ -418,6 +539,25 @@ export default function Page() {
         audio.load();
 
         await audio.play();
+
+        // stale async request
+        if (
+          requestId !==
+          playbackRequestIdRef.current
+        ) {
+          audio.pause();
+
+          hardResetAudio();
+
+          return;
+        }
+
+        // stale playback session
+        if (
+          !isPlaybackSessionActive(session)
+        ) {
+          return;
+        }
 
         retryCountRef.current = 0;
 
@@ -439,10 +579,11 @@ export default function Page() {
 
     // STOP
     else {
-      manualStopRef.current = true;
       userPausedRef.current = true;
       externalPauseRef.current = false;
       streamFailedRef.current = false;
+
+      manualStopRef.current = true;
 
       stopHealthCheck();
 
@@ -462,7 +603,37 @@ export default function Page() {
       return;
     }
 
-    const wasPlaying = playing === 2;
+    const audio = audioRef.current;
+
+    const wasPlaying =
+      !!audio &&
+      !audio.paused &&
+      !audio.ended &&
+      playingRef.current !== 0;
+
+    const session =
+      beginNewPlaybackSession();
+
+    stopHealthCheck();
+
+    recoveringRef.current = false;
+    retryCountRef.current = 0;
+    externalPauseRef.current = false;
+    streamFailedRef.current = false;
+
+    // preserve pause intent
+    userPausedRef.current = !wasPlaying;
+
+    manualStopRef.current = true;
+
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.src = "";
+      audio.load();
+    }
+
+    manualStopRef.current = false;
 
     setSelectedQuality(quality);
 
@@ -473,16 +644,23 @@ export default function Page() {
 
     setQualityMenuOpen(false);
 
-    if (!wasPlaying) return;
-
-    const audio = audioRef.current;
-
-    if (!audio) return;
+    // remain paused if previously paused
+    if (!wasPlaying || !audio) {
+      setPlaying(0);
+      return;
+    }
 
     try {
+      const requestId =
+        ++playbackRequestIdRef.current;
+
       setPlaying(1);
 
+      manualStopRef.current = true;
+
       hardResetAudio();
+
+      manualStopRef.current = false;
 
       audio.src = quality.url;
 
@@ -490,22 +668,49 @@ export default function Page() {
 
       await audio.play();
 
-      setPlaying(2);
+      // stale request
+      if (
+        requestId !==
+        playbackRequestIdRef.current
+      ) {
+        audio.pause();
+
+        hardResetAudio();
+
+        return;
+      }
+
+      // stale session
+      if (
+        !isPlaybackSessionActive(session)
+      ) {
+        return;
+      }
 
       retryCountRef.current = 0;
 
       recoveringRef.current = false;
 
+      setPlaying(2);
+
       startHealthCheck(2500);
     } catch (err) {
+      if (
+        !isPlaybackSessionActive(session)
+      ) {
+        return;
+      }
+
       console.error(
         "Quality switch failed",
         err,
       );
 
-      setPlaying(0);
+      stopHealthCheck();
 
       hardResetAudio();
+
+      setPlaying(0);
     }
   };
 
