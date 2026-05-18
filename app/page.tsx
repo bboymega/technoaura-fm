@@ -170,6 +170,37 @@ const VolumeControl = memo(
       };
     }, [isDesktop]);
 
+    useEffect(() => {
+      const audio = audioRef.current;
+      if (!audio) return;
+
+      const handleVolumeChange = () => {
+        // 1. Update the mutable refs with the actual audio element volume
+        volumeRef.current = audio.volume;
+        if (audio.volume > 0) {
+          previousVolumeRef.current = audio.volume;
+        }
+
+        // 2. Sync the stateful mute/unmute visual icon
+        setIsMuted(audio.muted || audio.volume === 0);
+
+        // 3. Force the physical HTML slider element position to sync up
+        if (sliderRef.current) {
+          sliderRef.current.value = String(audio.volume);
+        }
+      };
+
+      // Listen to native volume adjustments from any source
+      audio.addEventListener("volumechange", handleVolumeChange);
+      
+      // Initialize layout on mount
+      handleVolumeChange();
+
+      return () => {
+        audio.removeEventListener("volumechange", handleVolumeChange);
+      };
+    }, [audioRef]);
+
     if (!isDesktop) return null;
 
     const setVolume = (
