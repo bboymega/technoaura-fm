@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, memo } from "react";
 import {
   Check,
   ChevronUp,
@@ -9,6 +9,8 @@ import {
   Square,
   X,
   Settings,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 
 type StreamQuality = {
@@ -17,6 +19,245 @@ type StreamQuality = {
   description: string;
   url: string;
 };
+
+type VolumeControlProps = {
+  audioRef: React.RefObject<
+    HTMLAudioElement | null
+  >;
+  isDesktop: boolean;
+  compact?: boolean;
+};
+
+const VOLUME_STORAGE_KEY = "desktop-volume";
+
+const VolumeControl = memo(
+  function VolumeControl({
+    audioRef,
+    isDesktop,
+    compact = false,
+  }: VolumeControlProps) {
+    const sliderRef =
+      useRef<HTMLInputElement | null>(
+        null,
+      );
+
+    const volumeRef = useRef(1);
+    const previousVolumeRef = useRef(1);
+    const wheelCooldownRef = useRef(0);
+
+    const hoveringRef = useRef(false);
+
+    // mute icon rerender
+    const [isMuted, setIsMuted] = useState(false);
+
+    useEffect(() => {
+      if (!isDesktop) return;
+
+      const audio = audioRef.current;
+
+      if (!audio) return;
+
+      const saved =
+        localStorage.getItem(
+          VOLUME_STORAGE_KEY,
+        );
+
+      const initial =
+        saved !== null
+          ? Number(saved)
+          : 1;
+
+      const safe = Number.isFinite(initial)
+        ? Math.min(1, Math.max(0, initial))
+        : 1;
+
+      volumeRef.current = safe;
+
+      audio.volume = safe;
+
+      setIsMuted(safe === 0);
+
+      if (safe > 0) {
+        previousVolumeRef.current = safe;
+      }
+
+      if (sliderRef.current) {
+        sliderRef.current.value =
+          String(safe);
+      }
+    }, [audioRef, isDesktop]);
+
+    useEffect(() => {
+      if (!isDesktop) return;
+
+      const slider = sliderRef.current;
+
+      if (!slider) return;
+
+      const handleWheel = (
+        e: WheelEvent,
+      ) => {
+        // require intentional hover
+        if (!hoveringRef.current) {
+          return;
+        }
+
+        // ignore tiny trackpad noise
+        if (Math.abs(e.deltaY) < 4) {
+          return;
+        }
+
+        // throttle hypersensitive wheels
+        const now = Date.now();
+
+        if (
+          now -
+            wheelCooldownRef.current <
+          40
+        ) {
+          return;
+        }
+
+        wheelCooldownRef.current = now;
+
+        // stop page scrolling ONLY here
+        e.preventDefault();
+
+        const delta =
+          e.deltaY > 0 ? -0.05 : 0.05;
+
+        const next =
+          volumeRef.current + delta;
+
+        setVolume(next);
+
+        // sync UI immediately
+        slider.value = String(
+          Math.min(
+            1,
+            Math.max(0, next),
+          ),
+        );
+
+        persistVolume();
+      };
+
+      slider.addEventListener(
+        "wheel",
+        handleWheel,
+        {
+          passive: false,
+        },
+      );
+
+      return () => {
+        slider.removeEventListener(
+          "wheel",
+          handleWheel,
+        );
+      };
+    }, [isDesktop]);
+
+    if (!isDesktop) return null;
+
+    const setVolume = (
+      nextVolume: number,
+    ) => {
+      const audio = audioRef.current;
+
+      if (!audio) return;
+
+      const clamped = Math.min(
+        1,
+        Math.max(0, nextVolume),
+      );
+
+      if (clamped > 0.01) {
+        previousVolumeRef.current =
+          clamped;
+      }
+
+      volumeRef.current = clamped;
+
+      audio.volume = clamped;
+
+      setIsMuted(clamped === 0);
+    };
+
+    const persistVolume = () => {
+      localStorage.setItem(
+        VOLUME_STORAGE_KEY,
+        String(volumeRef.current),
+      );
+    };
+
+    const toggleMute = () => {
+      const next =
+        volumeRef.current > 0
+          ? 0
+          : previousVolumeRef.current;
+
+      if (sliderRef.current) {
+        sliderRef.current.value =
+          String(next);
+      }
+
+      setVolume(next);
+
+      persistVolume();
+    };
+
+    return (
+      <div
+        className={`flex items-center gap-3 ${
+          compact ? "w-36" : "w-52"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={toggleMute}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/15"
+        >
+          {isMuted ? (
+            <VolumeX size={18} />
+          ) : (
+            <Volume2 size={18} />
+          )}
+        </button>
+
+        <input
+          ref={sliderRef}
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          defaultValue={1}
+          onPointerEnter={() => {
+            hoveringRef.current = true;
+          }}
+          onPointerLeave={() => {
+            hoveringRef.current = false;
+          }}
+          onInput={(e) => {
+            setVolume(
+              Number(
+                (
+                  e.target as HTMLInputElement
+                ).value,
+              ),
+            );
+          }}
+          onPointerUp={persistVolume}
+          className="
+            h-1 w-full cursor-pointer appearance-none rounded-full
+            bg-white/20
+            accent-white
+          "
+        />
+      </div>
+    );
+  },
+);
 
 export default function Page() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -33,6 +274,7 @@ export default function Page() {
   const [controlsOpen, setControlsOpen] = useState(false);
   const [qualityMenuOpen, setQualityMenuOpen] =
     useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   const qualities: StreamQuality[] = [
     {
@@ -59,21 +301,36 @@ export default function Page() {
     useState<StreamQuality>(qualities[0]);
 
   useEffect(() => {
-    const savedQualityId =
-      window.localStorage.getItem(
-        QUALITY_STORAGE_KEY,
+    const mediaQuery =
+      window.matchMedia(
+        "(hover: hover) and (pointer: fine)",
       );
 
-    if (!savedQualityId) return;
+    const update = () => {
+      setIsDesktop(mediaQuery.matches);
+      if (!mediaQuery.matches) {
+        const audio = audioRef.current
+        if (audio) {
+          audio.volume = 1;
+        }
+      }
+    };
 
-    const savedQuality = qualities.find(
-      (q) => q.id === savedQualityId,
+    update();
+
+    mediaQuery.addEventListener(
+      "change",
+      update,
     );
 
-    if (savedQuality) {
-      setSelectedQuality(savedQuality);
-    }
+    return () => {
+      mediaQuery.removeEventListener(
+        "change",
+        update,
+      );
+    };
   }, []);
+
 
   const streamUrl = selectedQuality.url;
 
@@ -1011,6 +1268,11 @@ export default function Page() {
           </div>
 
           {/* PLAY BUTTON */}
+          <VolumeControl
+            audioRef={audioRef}
+            isDesktop={isDesktop}
+            compact
+          />
           <button
             type="button"
             onClick={(e) => {
@@ -1172,6 +1434,13 @@ export default function Page() {
             {selectedQuality.label} ·{" "}
             {selectedQuality.description}
           </p>
+          
+          <div className="mt-8">
+            <VolumeControl
+              audioRef={audioRef}
+              isDesktop={isDesktop}
+            />
+          </div>
 
           <button
             type="button"
