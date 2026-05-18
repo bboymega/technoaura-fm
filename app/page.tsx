@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, memo } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import {
   Check,
   ChevronUp,
@@ -11,6 +12,7 @@ import {
   Settings,
   Volume2,
   VolumeX,
+  Smartphone,
 } from "lucide-react";
 
 type StreamQuality = {
@@ -219,14 +221,14 @@ const VolumeControl = memo(
 
     return (
       <div
-        className={`flex items-center gap-3 ${
+        className={`flex cursor-pointer items-center gap-3 ${
           compact ? "w-36" : "w-52"
         }`}
       >
         <button
           type="button"
           onClick={toggleMute}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/15"
+          className="flex cursor-pointer h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/15"
         >
           {isMuted ? (
             <VolumeX size={18} />
@@ -284,8 +286,13 @@ export default function Page() {
   const [controlsOpen, setControlsOpen] = useState(false);
   const [qualityMenuOpen, setQualityMenuOpen] =
     useState(false);
+  const [androidOpen, setAndroidOpen] =
+    useState(false);
 
   const [isDesktop, setIsDesktop] = useState(getIsDesktop);
+
+  const androidDownloadUrl = process.env.NEXT_PUBLIC_ANDROID_APP_URL || "";
+  const androidMenuRef = useRef<HTMLDivElement | null>(null);
 
   const qualities: StreamQuality[] = [
     {
@@ -1052,6 +1059,40 @@ export default function Page() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!androidOpen) return;
+
+    const handlePointerDown = (
+      event: PointerEvent,
+    ) => {
+      const target = event.target as Node;
+
+      if (
+        androidMenuRef.current &&
+        !androidMenuRef.current.contains(
+          target,
+        )
+      ) {
+        setAndroidOpen(false);
+      }
+    };
+
+    document.addEventListener(
+      "pointerdown",
+      handlePointerDown,
+      {
+        passive: true,
+      },
+    );
+
+    return () => {
+      document.removeEventListener(
+        "pointerdown",
+        handlePointerDown,
+      );
+    };
+  }, [androidOpen]);
+
   const ChannelArtwork = () => (
     <svg
       viewBox="0 0 100 100"
@@ -1288,6 +1329,69 @@ export default function Page() {
               </div>
             </div>
           </div>
+
+          {/* ANDROID DOWNLOAD */}
+          {isDesktop && androidDownloadUrl && (
+            <div
+              ref={androidMenuRef}
+              className="relative shrink-0"
+            >
+              <button
+                type="button"
+                onClick={() =>
+                  setAndroidOpen((v) => !v)
+                }
+                className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/10 transition hover:bg-white/15"
+              >
+                <Smartphone size={15} />
+
+                <ChevronUp
+                  size={14}
+                  className={`transition-transform ${
+                    androidOpen
+                      ? "rotate-180"
+                      : ""
+                  }`}
+                />
+              </button>
+
+              <div
+                className={`absolute bottom-14 right-0 w-72 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl transition-all duration-200 ${
+                  androidOpen
+                    ? "pointer-events-auto translate-y-0 opacity-100"
+                    : "pointer-events-none translate-y-2 opacity-0"
+                }`}
+              >
+                <div className="flex flex-col items-center text-center">
+                  <div className="rounded-2xl bg-white p-3">
+                    <QRCodeSVG
+                      value={androidDownloadUrl}
+                      size={168}
+                      bgColor="#ffffff"
+                      fgColor="#000000"
+                    />
+                  </div>
+
+                  <p className="mt-4 text-sm font-medium">
+                    Download Android App
+                  </p>
+
+                  <p className="mt-1 text-xs text-zinc-400">
+                    Scan with your phone camera
+                  </p>
+
+                  <a
+                    href={androidDownloadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-white px-5 text-sm font-medium text-black transition hover:scale-[1.02]"
+                  >
+                    Open Download Link
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* PLAY BUTTON */}
           <VolumeControl
