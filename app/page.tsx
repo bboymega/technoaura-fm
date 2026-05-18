@@ -1012,6 +1012,32 @@ export default function Page() {
     setControlsOpen(true);
   };
 
+  const openAndroidModal = () => {
+    setFsQualityOpen(false);
+    setQualityMenuOpen(false);
+
+    const state = window.history.state || {};
+
+    window.history.pushState(
+      {
+        ...state,
+        androidModal: true,
+        fullscreenPlayer: controlsOpen,
+      },
+      "",
+    );
+
+    setAndroidOpen(true);
+  };
+
+  const closeAndroidModal = () => {
+    setAndroidOpen(false);
+
+    if (window.history.state?.androidModal) {
+      window.history.back();
+    }
+  };
+
   const closeControls = () => {
     setControlsOpen(false);
 
@@ -1031,6 +1057,7 @@ export default function Page() {
       setControlsOpen(false);
       setQualityMenuOpen(false);
       setFsQualityOpen(false);
+      setAndroidOpen(false);
 
       // restore states from history
       if (state?.fullscreenPlayer) {
@@ -1043,6 +1070,10 @@ export default function Page() {
 
       if (state?.fullscreenQualityMenu) {
         setFsQualityOpen(true);
+      }
+
+      if (state?.androidModal) {
+        setAndroidOpen(true);
       }
     };
 
@@ -1073,7 +1104,7 @@ export default function Page() {
           target,
         )
       ) {
-        setAndroidOpen(false);
+        closeAndroidModal();
       }
     };
 
@@ -1327,71 +1358,44 @@ export default function Page() {
                   );
                 })}
               </div>
+              {/* ANDROID DOWNLOAD ENTRY */}
+              {androidDownloadUrl && (
+                <>
+                  <div className="mx-2 my-2 h-px bg-white/5" />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFsQualityOpen(false);
+                      openAndroidModal();
+                    }}
+                    className="flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-3 text-left transition hover:bg-white/5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
+                        <Smartphone size={16} />
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-medium">
+                          Android App
+                        </p>
+
+                        <p className="text-xs text-zinc-400">
+                          Download mobile app
+                        </p>
+                      </div>
+                    </div>
+
+                    <ChevronUp
+                      size={14}
+                      className="-rotate-90 text-zinc-500"
+                    />
+                  </button>
+                </>
+              )}
             </div>
           </div>
-
-          {/* ANDROID DOWNLOAD */}
-          {isDesktop && androidDownloadUrl && (
-            <div
-              ref={androidMenuRef}
-              className="relative shrink-0"
-            >
-              <button
-                type="button"
-                onClick={() =>
-                  setAndroidOpen((v) => !v)
-                }
-                className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/10 transition hover:bg-white/15"
-              >
-                <Smartphone size={15} />
-
-                <ChevronUp
-                  size={14}
-                  className={`transition-transform ${
-                    androidOpen
-                      ? "rotate-180"
-                      : ""
-                  }`}
-                />
-              </button>
-
-              <div
-                className={`absolute bottom-14 right-0 w-72 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl transition-all duration-200 ${
-                  androidOpen
-                    ? "pointer-events-auto translate-y-0 opacity-100"
-                    : "pointer-events-none translate-y-2 opacity-0"
-                }`}
-              >
-                <div className="flex flex-col items-center text-center">
-                  <div className="rounded-2xl bg-white p-3">
-                    <QRCodeSVG
-                      value={androidDownloadUrl}
-                      size={168}
-                      bgColor="#ffffff"
-                      fgColor="#000000"
-                    />
-                  </div>
-
-                  <p className="mt-4 text-sm font-medium">
-                    Download Android App
-                  </p>
-
-                  <p className="mt-1 text-xs text-zinc-400">
-                    Scan with your phone camera
-                  </p>
-
-                  <a
-                    href={androidDownloadUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-white px-5 text-sm font-medium text-black transition hover:scale-[1.02]"
-                  >
-                    Open Download Link
-                  </a>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* PLAY BUTTON */}
           <VolumeControl
@@ -1437,7 +1441,59 @@ export default function Page() {
           </button>
         </div>
       </div>
+      {/* ANDROID DOWNLOAD MODAL */}
+      <div
+        className={`fixed inset-0 z-[80] flex items-center justify-center transition-all duration-300 ${
+          androidOpen
+            ? "pointer-events-auto bg-black/70 opacity-100 backdrop-blur-sm"
+            : "pointer-events-none bg-black/0 opacity-0 backdrop-blur-0"
+        }`}
+      >
+        <div
+          ref={androidMenuRef}
+          className={`relative mx-6 w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-zinc-900 p-6 shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            androidOpen
+              ? "translate-y-0 scale-100 opacity-100"
+              : "translate-y-4 scale-95 opacity-0"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={closeAndroidModal}
+            className="absolute cursor-pointer right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/5 transition hover:bg-white/10"
+          >
+            <X size={18} />
+          </button>
 
+          <div className="flex flex-col items-center text-center">
+            <div className="rounded-2xl bg-white p-3">
+              <QRCodeSVG
+                value={androidDownloadUrl}
+                size={190}
+                bgColor="#ffffff"
+                fgColor="#000000"
+              />
+            </div>
+
+            <p className="mt-5 text-lg font-semibold">
+              Download Android App
+            </p>
+
+            <p className="mt-2 text-sm text-zinc-400">
+              Scan the QR code with your phone camera
+            </p>
+
+            <a
+              href={androidDownloadUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-white px-6 text-sm font-medium text-black transition hover:scale-[1.02]"
+            >
+              Open Download Link
+            </a>
+          </div>
+        </div>
+      </div>
       {/* Fullscreen Player */}
       <div
         className={`fixed inset-0 z-50 flex flex-col bg-black text-white will-change-transform transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
@@ -1528,6 +1584,42 @@ export default function Page() {
                   );
                 })}
               </div>
+              {/* ANDROID DOWNLOAD ENTRY */}
+              {androidDownloadUrl && (
+                <>
+                  <div className="mx-2 my-2 h-px bg-white/5" />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQualityMenuOpen(false);
+                      openAndroidModal();
+                    }}
+                    className="flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-3 text-left transition hover:bg-white/5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10">
+                        <Smartphone size={16} />
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-medium">
+                          Android App
+                        </p>
+
+                        <p className="text-xs text-zinc-400">
+                          Download mobile app
+                        </p>
+                      </div>
+                    </div>
+
+                    <ChevronUp
+                      size={14}
+                      className="-rotate-90 text-zinc-500"
+                    />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
