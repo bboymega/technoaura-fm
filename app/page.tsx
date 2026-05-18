@@ -30,6 +30,16 @@ type VolumeControlProps = {
 
 const VOLUME_STORAGE_KEY = "desktop-volume";
 
+const getIsDesktop = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.matchMedia(
+    "(hover: hover) and (pointer: fine)"
+  ).matches;
+};
+
 const VolumeControl = memo(
   function VolumeControl({
     audioRef,
@@ -275,16 +285,6 @@ export default function Page() {
   const [qualityMenuOpen, setQualityMenuOpen] =
     useState(false);
 
-  const getIsDesktop = () => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-
-    return window.matchMedia(
-      "(hover: hover) and (pointer: fine)"
-    ).matches;
-  };
-
   const [isDesktop, setIsDesktop] = useState(getIsDesktop);
 
   const qualities: StreamQuality[] = [
@@ -371,7 +371,6 @@ export default function Page() {
   const externalPauseRef = useRef(false);
   const userPausedRef = useRef(false);
   const streamFailedRef = useRef(false);
-  const fullscreenHistoryRef = useRef(false);
   const pauseTimeoutRef =
   useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -455,6 +454,10 @@ export default function Page() {
       audio.src = streamUrlRef.current;
 
       audio.load();
+
+      if (!isDesktop) {
+        audio.volume = 1;
+      }
 
       await audio.play();
 
@@ -807,6 +810,10 @@ export default function Page() {
 
         audio.load();
 
+        if (!isDesktop) {
+          audio.volume = 1;
+        }
+
         await audio.play();
 
         // stale async request
@@ -934,6 +941,10 @@ export default function Page() {
       audio.src = quality.url;
 
       audio.load();
+
+      if (!isDesktop) {
+        audio.volume = 1;
+      }
 
       await audio.play();
 
