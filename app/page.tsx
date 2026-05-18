@@ -274,7 +274,18 @@ export default function Page() {
   const [controlsOpen, setControlsOpen] = useState(false);
   const [qualityMenuOpen, setQualityMenuOpen] =
     useState(false);
-  const [isDesktop, setIsDesktop] = useState(false);
+
+  const getIsDesktop = () => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.matchMedia(
+      "(hover: hover) and (pointer: fine)"
+    ).matches;
+  };
+
+  const [isDesktop, setIsDesktop] = useState(getIsDesktop);
 
   const qualities: StreamQuality[] = [
     {
