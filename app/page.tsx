@@ -31,6 +31,7 @@ type VolumeControlProps = {
 };
 
 const VOLUME_STORAGE_KEY = "desktop-volume";
+const LAST_VOLUME_STORAGE_KEY = "desktop-last-volume";
 
 const getIsDesktop = () => {
   if (typeof window === "undefined") {
@@ -62,6 +63,7 @@ const VolumeControl = memo(
     // mute icon rerender
     const [isMuted, setIsMuted] = useState(false);
 
+    // handle volume slider
     useEffect(() => {
       if (!isDesktop) return;
 
@@ -69,33 +71,57 @@ const VolumeControl = memo(
 
       if (!audio) return;
 
-      const saved =
+      const savedVolume = localStorage.getItem(
+        VOLUME_STORAGE_KEY,
+      );
+
+      const savedLastVolume =
         localStorage.getItem(
-          VOLUME_STORAGE_KEY,
+          LAST_VOLUME_STORAGE_KEY,
         );
 
-      const initial =
-        saved !== null
-          ? Number(saved)
+      const initialVolume =
+        savedVolume !== null
+          ? Number(savedVolume)
           : 1;
 
-      const safe = Number.isFinite(initial)
-        ? Math.min(1, Math.max(0, initial))
+      const initialLastVolume =
+        savedLastVolume !== null
+          ? Number(savedLastVolume)
+          : 1;
+
+      const safeVolume = Number.isFinite(
+        initialVolume,
+      )
+        ? Math.min(
+            1,
+            Math.max(0, initialVolume),
+          )
         : 1;
 
-      volumeRef.current = safe;
+      const safeLastVolume =
+        Number.isFinite(initialLastVolume) &&
+        initialLastVolume > 0
+          ? Math.min(
+              1,
+              Math.max(
+                0,
+                initialLastVolume,
+              ),
+            )
+          : 1;
 
-      audio.volume = safe;
+      volumeRef.current = safeVolume;
+      previousVolumeRef.current =
+        safeLastVolume;
 
-      setIsMuted(safe === 0);
+      audio.volume = safeVolume;
 
-      if (safe > 0) {
-        previousVolumeRef.current = safe;
-      }
+      setIsMuted(safeVolume === 0);
 
       if (sliderRef.current) {
         sliderRef.current.value =
-          String(safe);
+          String(safeVolume);
       }
     }, [audioRef, isDesktop]);
 
@@ -224,7 +250,11 @@ const VolumeControl = memo(
 
       audio.volume = clamped;
 
-      setIsMuted(clamped === 0);
+      audio.muted = clamped < 0.01;
+
+      setIsMuted(audio.muted);
+
+      persistVolume();
     };
 
     const persistVolume = () => {
@@ -232,6 +262,14 @@ const VolumeControl = memo(
         VOLUME_STORAGE_KEY,
         String(volumeRef.current),
       );
+      if (previousVolumeRef.current > 0.01) {
+        localStorage.setItem(
+          LAST_VOLUME_STORAGE_KEY,
+          String(
+            previousVolumeRef.current,
+          ),
+        );
+      }
     };
 
     const toggleMute = () => {
