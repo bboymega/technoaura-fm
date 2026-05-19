@@ -116,6 +116,7 @@ const VolumeControl = memo(
         safeLastVolume;
 
       audio.volume = safeVolume;
+      audio.muted = audio.volume < 0.01;
 
       setIsMuted(safeVolume === 0);
 
