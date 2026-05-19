@@ -118,7 +118,7 @@ const VolumeControl = memo(
       audio.volume = safeVolume;
       audio.muted = audio.volume < 0.01;
 
-      setIsMuted(safeVolume === 0);
+      setIsMuted(audio.volume < 0.01);
 
       if (sliderRef.current) {
         sliderRef.current.value =
@@ -209,7 +209,7 @@ const VolumeControl = memo(
         }
 
         // 2. Sync the stateful mute/unmute visual icon
-        setIsMuted(audio.muted || audio.volume === 0);
+        setIsMuted(audio.muted || audio.volume < 0.01);
 
         // 3. Force the physical HTML slider element position to sync up
         if (sliderRef.current) {
