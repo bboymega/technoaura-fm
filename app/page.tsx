@@ -399,6 +399,7 @@ export default function Page() {
         const audio = audioRef.current
         if (audio) {
           audio.volume = 1;
+          audio.muted = false;
         }
       }
     };
@@ -533,6 +534,7 @@ export default function Page() {
 
       if (!isDesktop) {
         audio.volume = 1;
+        audio.muted = false;
       }
 
       await audio.play();
@@ -888,6 +890,7 @@ export default function Page() {
 
         if (!isDesktop) {
           audio.volume = 1;
+          audio.muted = false;
         }
 
         await audio.play();
@@ -1020,6 +1023,7 @@ export default function Page() {
 
       if (!isDesktop) {
         audio.volume = 1;
+        audio.muted = false;
       }
 
       await audio.play();
