@@ -6,10 +6,10 @@ NEXT_PUBLIC_STREAMS='[
     "url": "stream/24_96"
   },
   {
-    "id": "24_48",
+    "id": "24_44",
     "label": "HQ",
-    "description": "24-bit / 48 kHz",
-    "url": "stream/24_48"
+    "description": "24-bit / 44.1 kHz",
+    "url": "stream/24_44"
   },
   {
     "id": "16_44",
