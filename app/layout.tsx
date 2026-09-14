@@ -29,8 +29,6 @@ export const metadata: Metadata = {
   description:
     process.env.NEXT_PUBLIC_DESC,
 
-  manifest: "/radio/manifest.json",
-
   appleWebApp: {
     capable: true,
     statusBarStyle:
@@ -40,9 +38,9 @@ export const metadata: Metadata = {
   },
 
   icons: {
-    icon: "/radio/icon.svg",
+    icon: "/icon.svg",
     apple:
-      "/radio/icons/icon-192.png",
+      "/icons/icon-192.png",
   },
 };
 

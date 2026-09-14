@@ -1,29 +1,16 @@
 NEXT_PUBLIC_STREAMS='[
   {
-    "id": "24_96",
-    "label": "UHQ",
-    "description": "24-bit / 96 kHz",
-    "url": "stream/24_96"
-  },
-  {
-    "id": "24_44",
-    "label": "HQ",
-    "description": "24-bit / 44.1 kHz",
-    "url": "stream/24_44"
-  },
-  {
-    "id": "16_44",
-    "label": "SD",
-    "description": "16-bit / 44.1 kHz",
-    "url": "stream/16_44"
+    "id": "default",
+    "label": "default",
+    "description": "default",
+    "url": "bboymusic/stream"
   }
 ]'
-
-NEXT_PUBLIC_TRACKINFO = "info"
-NEXT_PUBLIC_TITLE = "TechnoAura Live Radio"
-NEXT_PUBLIC_NAME = "TechnoAura"
-NEXT_PUBLIC_DESC = "Nonstop vibes 24/7"
-NEXT_PUBLIC_BACKGROUND_COLOR = "rgb(70,70,70)"
+NEXT_PUBLIC_TRACKINFO = "bboymusic/info"
+NEXT_PUBLIC_TITLE = "BBoy Radio"
+NEXT_PUBLIC_NAME = "BBoy Radio"
+NEXT_PUBLIC_DESC = "BBoy Music 24/7"
+NEXT_PUBLIC_BACKGROUND_COLOR = "rgb(70, 63, 30)"
 NEXT_PUBLIC_CHANNEL_COLOR = "#101010"
 NEXT_PUBLIC_PLAYER_COLOR = "#101010"
-NEXT_PUBLIC_ANDROID_APP_URL = "https://yourapkurl.url/app-release.apk"
+NEXT_PUBLIC_ANDROID_APP_URL = "https://your-apk-url.com"
