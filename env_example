@@ -1,6 +1,25 @@
-NEXT_PUBLIC_STREAM_URL_24_96 = "stream/24_96"
-NEXT_PUBLIC_STREAM_URL_24_48 = "stream/24_48"
-NEXT_PUBLIC_STREAM_URL_16_44 = "stream/16_44"
+NEXT_PUBLIC_STREAMS='[
+  {
+    "id": "24_96",
+    "label": "UHQ",
+    "description": "24-bit / 96 kHz",
+    "url": "stream/24_96"
+  },
+  {
+    "id": "24_48",
+    "label": "HQ",
+    "description": "24-bit / 48 kHz",
+    "url": "stream/24_48"
+  },
+  {
+    "id": "16_44",
+    "label": "SD",
+    "description": "16-bit / 44.1 kHz",
+    "url": "stream/16_44"
+  }
+]'
+
+NEXT_PUBLIC_TRACKINFO = "info"
 NEXT_PUBLIC_TITLE = "TechnoAura Live Radio"
 NEXT_PUBLIC_NAME = "TechnoAura"
 NEXT_PUBLIC_DESC = "Nonstop vibes 24/7"

@@ -22,6 +22,57 @@ type StreamQuality = {
   url: string;
 };
 
+type TrackInfo = {
+  current_file: string;
+  status: string;
+};
+
+const getStreamQualities = (): StreamQuality[] => {
+  const raw = process.env.NEXT_PUBLIC_STREAMS;
+
+  if (!raw) {
+    console.error(
+      "NEXT_PUBLIC_STREAMS is not configured."
+    );
+
+    return [];
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+
+    if (!Array.isArray(parsed)) {
+      throw new Error(
+        "NEXT_PUBLIC_STREAMS must be a JSON array."
+      );
+    }
+
+    return parsed.filter(
+      (item): item is StreamQuality =>
+        typeof item === "object" &&
+        item !== null &&
+        typeof (item as StreamQuality).id ===
+          "string" &&
+        typeof (item as StreamQuality).label ===
+          "string" &&
+        typeof (item as StreamQuality).description ===
+          "string" &&
+        typeof (item as StreamQuality).url ===
+          "string" &&
+        (item as StreamQuality).url.length > 0
+    );
+  } catch (error) {
+    console.error(
+      "Invalid NEXT_PUBLIC_STREAMS configuration:",
+      error
+    );
+
+    return [];
+  }
+};
+
+const STREAM_QUALITIES = getStreamQualities();
+
 type VolumeControlProps = {
   audioRef: React.RefObject<
     HTMLAudioElement | null
@@ -361,29 +412,29 @@ export default function Page() {
 
   const [isDesktop, setIsDesktop] = useState(getIsDesktop);
 
+  const TRACKINFO_URL = process.env.NEXT_PUBLIC_TRACKINFO || "";
+  const [currentTrack, setCurrentTrack] = useState<string | null>(null);
+
   const androidDownloadUrl = process.env.NEXT_PUBLIC_ANDROID_APP_URL || "";
   const androidMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const qualities: StreamQuality[] = [
-    {
-      id: "24_96",
-      label: "UHQ",
-      description: "24-bit / 96 kHz",
-      url: process.env.NEXT_PUBLIC_STREAM_URL_24_96!,
-    },
-    {
-      id: "24_48",
-      label: " HQ",
-      description: "24-bit / 48 kHz",
-      url: process.env.NEXT_PUBLIC_STREAM_URL_24_48!,
-    },
-    {
-      id: "16_44",
-      label: "SD",
-      description: "16-bit / 44.1 kHz",
-      url: process.env.NEXT_PUBLIC_STREAM_URL_16_44!,
-    },
-  ];
+  const qualities = STREAM_QUALITIES;
+
+  if (qualities.length === 0) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
+      <div className="text-center">
+        <h1 className="text-lg font-semibold">
+          No streams configured
+        </h1>
+
+        <p className="mt-2 text-sm text-zinc-400">
+          Add at least one stream to NEXT_PUBLIC_STREAMS.
+        </p>
+      </div>
+    </div>
+  );
+}
 
   const [selectedQuality, setSelectedQuality] =
     useState<StreamQuality>(qualities[0]);
@@ -422,6 +473,7 @@ export default function Page() {
 
 
   const streamUrl = selectedQuality.url;
+  const displayedDescription = currentTrack || process.env.NEXT_PUBLIC_DESC || "";
 
   /**
    * Prevent stale closures during:
@@ -1198,6 +1250,101 @@ export default function Page() {
     };
   }, [androidOpen]);
 
+  useEffect(() => {
+    if (!TRACKINFO_URL) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchTrackInfo = async () => {
+
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => {
+        controller.abort();
+      }, 2000);
+
+      try {
+        const response = await fetch(
+          TRACKINFO_URL,
+          {
+            cache: "no-store",
+            signal: controller.signal,
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            `Track info request failed: ${response.status}`,
+          );
+        }
+
+        const data: unknown =
+          await response.json();
+
+        if (cancelled) {
+          return;
+        }
+
+        if (
+          typeof data === "object" &&
+          data !== null &&
+          "status" in data &&
+          "current_file" in data
+        ) {
+          const info = data as TrackInfo;
+
+          if (
+            info.status === "playing" &&
+            typeof info.current_file === "string" &&
+            info.current_file.trim().length > 0
+          ) {
+            setCurrentTrack(
+              info.current_file,
+            );
+          } else {
+            // Fall back to NEXT_PUBLIC_DESC
+            // when the stream isn't playing.
+            setCurrentTrack(null);
+          }
+        } else {
+          setCurrentTrack(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error(
+            "Failed to fetch track info:",
+            error,
+          );
+
+          // Keep using NEXT_PUBLIC_DESC
+          // if the endpoint is unavailable.
+          setCurrentTrack(null);
+        }
+      } finally {
+        // Cancel the timeout if request finished normally
+        window.clearTimeout(timeoutId);
+      }
+    };
+
+    // Fetch immediately when the component loads.
+    void fetchTrackInfo();
+
+    // Then refresh every 5 seconds.
+    const intervalId = window.setInterval(
+      () => {
+        void fetchTrackInfo();
+      },
+      5000,
+    );
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+
   const ChannelArtwork = () => (
     <svg
       viewBox="0 0 100 100"
@@ -1315,7 +1462,7 @@ export default function Page() {
             </h1>
 
             <p className="text-sm text-zinc-400">
-              {process.env.NEXT_PUBLIC_DESC}
+              {displayedDescription}
             </p>
           </div>
         </div>
@@ -1772,7 +1919,7 @@ export default function Page() {
               </h2>
 
               <p className="mt-2 max-w-sm text-sm text-zinc-400">
-                {process.env.NEXT_PUBLIC_DESC}
+                {displayedDescription}
               </p>
 
               <p className="mt-3 text-xs uppercase tracking-[0.2em] text-zinc-500">
