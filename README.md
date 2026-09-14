@@ -11,5 +11,8 @@ npm run build
 cp -r out /var/www/html/radio
 ```
 
+## MPD Integration API
+It can be found [Here](https://github.com/bboymega/mpd-trackinfo)
+
 ## Screenshot
 <img src="screenshot.png" alt="TechnoAura screenshot" width="420">
