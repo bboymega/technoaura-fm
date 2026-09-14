@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   title: process.env.NEXT_PUBLIC_TITLE,
   description:
     process.env.NEXT_PUBLIC_DESC,
-
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle:
